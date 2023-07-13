@@ -17,6 +17,8 @@ OSX Command:
 gcc ws_client.c -o ws_client -I/opt/homebrew/Cellar/libwebsockets/4.3.2_1/include -L/opt/homebrew/Cellar/libwebsockets/4.3.2_1/lib -lwebsockets -I/opt/homebrew/Cellar/openssl@3/3.1.1_1/include -L/opt/homebrew/Cellar/openssl@3/3.1.1_1/lib -lssl -lcrypto
 */
 
+// Global Context
+struct lws_context *context = NULL;
 // WebSocket callback functions
 static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
 
@@ -26,7 +28,7 @@ static struct lws_protocols protocols[] = {
         "my-protocol",           // Protocol name
         websocket_callback,      // Callback function
         0,                       // Per-session data size
-        1024,                    // Receive buffer size (if protocol has RX extension)
+        128,                    // Receive buffer size (if protocol has RX extension)
         0,                       // ID number (reserved)
         NULL,                    // User data
         0                        // Attach count
@@ -47,7 +49,9 @@ static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason,
 
         case LWS_CALLBACK_CLIENT_RECEIVE:
             printf("Received data: %s\n", (char *)in);
-            break;
+            lws_cancel_service(context);
+            lws_close_reason(wsi, LWS_CLOSE_STATUS_NORMAL, NULL, 0);
+            return -1;
 
         case LWS_CALLBACK_CLIENT_WRITEABLE:
             // Send a message to the server
@@ -67,7 +71,6 @@ static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason,
 
 int main(void)
 {
-    struct lws_context *context;
     struct lws_context_creation_info info;
     struct lws_client_connect_info connect_info;
     struct lws *websocket;
@@ -115,7 +118,7 @@ int main(void)
         // No need to do anything here, the callback functions will handle events
     }
 
-    // lws_context_destroy(context);
+    lws_context_destroy(context);
 
     return 0;
 }
